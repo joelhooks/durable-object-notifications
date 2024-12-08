@@ -6,11 +6,22 @@
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "start": "wrangler dev",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "test": "NODE_OPTIONS=--experimental-vm-modules vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241205.0",
+    "miniflare": "2.14.4",
+    "vitest-environment-miniflare": "2.14.4",
     "typescript": "^5.5.2",
-    "wrangler": "^3.60.3"
+    "vitest": "^1.0.0",
+    "wrangler": "^3.60.3",
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "inngest": "^3.27.4",
+    "zod": "^3.23.8"
   }
 }

@@ -1,65 +1,174 @@
 import { DurableObject } from "cloudflare:workers";
+import { PreferenceError } from './errors';
+import { NotificationLevel, UserPreferences, UserPreferencesSchema } from './types';
 
-/**
- * Welcome to Cloudflare Workers! This is your first Durable Objects application.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your Durable Object in action
- * - Run `npm run deploy` to publish your application
- *
- * Bind resources to your worker in `wrangler.toml`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/durable-objects
- */
+export class PreferenceManager extends DurableObject {
+	private sql = this.ctx.storage.sql;
 
-/** A Durable Object's behavior is defined in an exported Javascript class */
-export class MyDurableObject extends DurableObject {
-	/**
-	 * The constructor is invoked once upon creation of the Durable Object, i.e. the first call to
-	 * 	`DurableObjectStub::get` for a given identifier (no-op constructors can be omitted)
-	 *
-	 * @param ctx - The interface for interacting with Durable Object state
-	 * @param env - The interface to reference bindings declared in wrangler.toml
-	 */
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
+		this.sql = ctx.storage.sql;  
+		this.init();
 	}
 
-	/**
-	 * The Durable Object exposes an RPC method sayHello which will be invoked when when a Durable
-	 *  Object instance receives a request from a Worker via the same method invocation on the stub
-	 *
-	 * @param name - The name provided to a Durable Object instance from a Worker
-	 * @returns The greeting to be sent back to the Worker
-	 */
-	async sayHello(name: string): Promise<string> {
-		return `Hello, ${name}!`;
+  async init() {
+    this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS preferences (
+        user_id TEXT PRIMARY KEY,
+        default_level TEXT,
+        email_enabled INTEGER,
+        web_enabled INTEGER,
+        digest_frequency TEXT,
+        updated_at INTEGER
+      );
+
+      -- Start simple with basic subscriptions
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        user_id TEXT,
+        creator_id TEXT,
+        level TEXT,
+        created_at INTEGER,
+        PRIMARY KEY (user_id, creator_id)
+      );
+    `);
+  }
+
+	async getPreferences(userId: string) {
+		const result = Array.from(this.sql.exec(`SELECT * FROM preferences WHERE user_id = ?`, userId));
+
+		return result.length ? this.mapToPreferences(result[0]) : this.getDefaults(userId);
 	}
+
+	private mapToPreferences(row: any): UserPreferences {
+		return {
+			userId: row.user_id,
+			defaultLevel: row.default_level as NotificationLevel,
+			email: row.email_enabled === 1,
+			web: row.web_enabled === 1,
+			digestFrequency: row.digest_frequency as 'daily' | 'weekly',
+		};
+	}
+
+	private getDefaults(userId: string): UserPreferences {
+		return {
+			userId,
+			defaultLevel: 'everything',
+			email: true,
+			web: true,
+		};
+	}
+
+  async updatePreferences(
+    userId: string, 
+    preferences: Partial<UserPreferences>
+  ): Promise<void> {
+    if (!userId?.trim()) {
+      throw new PreferenceError('Invalid user ID', 'INVALID_USER_ID');
+    }
+
+    try {
+      UserPreferencesSchema.partial().parse(preferences);
+    } catch (error) {
+      throw new PreferenceError('Invalid preferences format', 'INVALID_FORMAT');
+    }
+
+    const current = await this.getPreferences(userId);
+    const updated = { ...current, ...preferences };
+
+    const params = [
+      updated.defaultLevel,
+      Number(updated.email),
+      Number(updated.web),
+      updated.digestFrequency || 'daily',
+      Date.now()
+    ];
+
+    try {
+      const exists = this.sql.exec(
+        "SELECT 1 FROM preferences WHERE user_id = ?", 
+        userId
+      ).toArray().length > 0;
+
+      this.sql.exec(
+        exists 
+          ? `UPDATE preferences 
+             SET default_level = ?,
+                 email_enabled = ?,
+                 web_enabled = ?,
+                 digest_frequency = ?,
+                 updated_at = ?
+             WHERE user_id = ?`
+          : `INSERT INTO preferences (
+               default_level,
+               email_enabled,
+               web_enabled,
+               digest_frequency,
+               updated_at,
+               user_id
+             ) VALUES (?, ?, ?, ?, ?, ?)`,
+        ...params,
+        userId
+      );
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to update preferences: ${errorMessage}`);
+    }
+  }
+
+  // Add transaction support for better data consistency
+  async setSubscription(userId: string, creatorId: string, level: NotificationLevel): Promise<void> {
+    this.sql.exec('BEGIN TRANSACTION');
+    try {
+      this.sql.exec(
+        `INSERT OR REPLACE INTO subscriptions (user_id, creator_id, level, created_at)
+         VALUES (?, ?, ?, ?)`,
+        userId,
+        creatorId,
+        level,
+        Date.now()
+      );
+      this.sql.exec('COMMIT');
+    } catch (error) {
+      this.sql.exec('ROLLBACK');
+      throw error;
+    }
+  }
 }
 
 export default {
-	/**
-	 * This is the standard fetch handler for a Cloudflare Worker
-	 *
-	 * @param request - The request submitted to the Worker from the client
-	 * @param env - The interface to reference bindings declared in wrangler.toml
-	 * @param ctx - The execution context of the Worker
-	 * @returns The response to be sent back to the client
-	 */
-	async fetch(request, env, ctx): Promise<Response> {
-		// We will create a `DurableObjectId` using the pathname from the Worker request
-		// This id refers to a unique instance of our 'MyDurableObject' class above
-		let id: DurableObjectId = env.MY_DURABLE_OBJECT.idFromName(new URL(request.url).pathname);
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
 
-		// This stub creates a communication channel with the Durable Object instance
-		// The Durable Object constructor will be invoked upon the first call for a given id
-		let stub = env.MY_DURABLE_OBJECT.get(id);
+		const userId = url.searchParams.get("userId");
 
-		// We call the `sayHello()` RPC method on the stub to invoke the method on the remote
-		// Durable Object instance
-		let greeting = await stub.sayHello("world");
+		if (!userId) {
+			return new Response("User ID is required", { status: 400 });
+		}
 
-		return new Response(greeting);
-	},
+		const id = env.PREFERENCES.idFromName(userId);
+		const manager = env.PREFERENCES.get(id);
+
+		if (request.method === 'GET') {
+			return new Response(
+				JSON.stringify(await manager.getPreferences(userId)),
+				{
+					headers: {
+						'Content-Type': 'application/json',
+					},
+				}
+			)
+		}
+
+		if (request.method === 'PUT') {
+			try {
+				const preferences = await request.json();
+				await manager.updatePreferences(userId, UserPreferencesSchema.parse(preferences));
+				return new Response('updated', { status: 200 });
+			} catch (error) {
+				return new Response(JSON.stringify({ error: 'Invalid request body' }), { status: 400 });
+			}
+		}
+
+		return new Response('method not allowed', { status: 405 });
+  },
 } satisfies ExportedHandler<Env>;
