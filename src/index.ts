@@ -1,7 +1,19 @@
 import { DurableObject } from "cloudflare:workers";
-import { PreferenceError } from './errors';
-import { NotificationLevel, UserPreferences, UserPreferencesSchema } from './types';
 
+type NotificationLevel = 'everything' | 'digest' | 'quiet';
+
+import { z } from 'zod';
+import { PreferenceError } from "./errors"
+
+const UserPreferencesSchema = z.object({
+  userId: z.string(),
+  defaultLevel: z.enum(['everything', 'digest', 'quiet']),
+  email: z.boolean(),
+  web: z.boolean(),
+  digestFrequency: z.enum(['daily', 'weekly']).optional()
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 export class PreferenceManager extends DurableObject {
 	private sql = this.ctx.storage.sql;
 
@@ -112,25 +124,6 @@ export class PreferenceManager extends DurableObject {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to update preferences: ${errorMessage}`);
-    }
-  }
-
-  // Add transaction support for better data consistency
-  async setSubscription(userId: string, creatorId: string, level: NotificationLevel): Promise<void> {
-    this.sql.exec('BEGIN TRANSACTION');
-    try {
-      this.sql.exec(
-        `INSERT OR REPLACE INTO subscriptions (user_id, creator_id, level, created_at)
-         VALUES (?, ?, ?, ?)`,
-        userId,
-        creatorId,
-        level,
-        Date.now()
-      );
-      this.sql.exec('COMMIT');
-    } catch (error) {
-      this.sql.exec('ROLLBACK');
-      throw error;
     }
   }
 }
