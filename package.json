@@ -1,6 +1,6 @@
 {
-  "name": "durable-object-starter",
-  "version": "0.0.0",
+  "name": "durable-notifications",
+  "version": "0.0.1",
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
@@ -15,14 +15,15 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241205.0",
+    "@types/better-sqlite3": "^7.6.12",
+    "better-sqlite3": "^9.6.0",
     "drizzle-kit": "^0.30.0",
     "miniflare": "2.14.4",
     "typescript": "^5.5.2",
     "vite": "^5.0.0",
     "vitest": "^1.0.0",
     "vitest-environment-miniflare": "2.14.4",
-    "wrangler": "^3.60.3",
-    "better-sqlite3": "^9.4.3"
+    "wrangler": "^3.60.3"
   },
   "dependencies": {
     "drizzle-orm": "^0.37.0",

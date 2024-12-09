@@ -1,8 +1,6 @@
-import * as schema from "./schema";
-import { type DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite';
+import * as schema from './schema'
+import { type DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite'
 
-export type DrizzleDatabaseWithSchema = DrizzleSqliteDODatabase<
-  typeof schema
->;
-export { schema };
-export * from "./schema";
+export type DrizzleDatabaseWithSchema = DrizzleSqliteDODatabase<typeof schema>
+export { schema }
+export * from './schema'

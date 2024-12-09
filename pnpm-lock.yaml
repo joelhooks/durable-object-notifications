@@ -7,7 +7,7 @@ settings:
 dependencies:
   drizzle-orm:
     specifier: ^0.37.0
-    version: 0.37.0(@cloudflare/workers-types@4.20241205.0)(better-sqlite3@9.6.0)
+    version: 0.37.0(@cloudflare/workers-types@4.20241205.0)(@types/better-sqlite3@7.6.12)(better-sqlite3@9.6.0)
   inngest:
     specifier: ^3.27.4
     version: 3.27.4(typescript@5.7.2)
@@ -19,8 +19,11 @@ devDependencies:
   '@cloudflare/workers-types':
     specifier: ^4.20241205.0
     version: 4.20241205.0
+  '@types/better-sqlite3':
+    specifier: ^7.6.12
+    version: 7.6.12
   better-sqlite3:
-    specifier: ^9.4.3
+    specifier: ^9.6.0
     version: 9.6.0
   drizzle-kit:
     specifier: ^0.30.0
@@ -1350,7 +1353,6 @@ packages:
     resolution: {integrity: sha512-fnQmj8lELIj7BSrZQAdBMHEHX8OZLYIHXqAKT1O7tDfLxaINzf00PMjw22r3N/xXh0w/sGHlO6SVaCQ2mj78lg==}
     dependencies:
       '@types/node': 22.10.1
-    dev: true
 
   /@types/debug@4.1.12:
     resolution: {integrity: sha512-vIChWdVG3LG1SMxEvI/AK+FWJthlrqlTu7fbrlywTkkaONwk/UAGaULXRlf8vkzFBLVm0zkMdCquhL5aOjhXPQ==}
@@ -1376,7 +1378,6 @@ packages:
     resolution: {integrity: sha512-qKgsUwfHZV2WCWLAnVP1JqnpE6Im6h3Y0+fYgMTasNQ7V++CBX5OT1as0g0f+OyubbFqhf6XVNIsmN4IIhEgGQ==}
     dependencies:
       undici-types: 6.20.0
-    dev: true
 
   /@types/stack-trace@0.0.29:
     resolution: {integrity: sha512-TgfOX+mGY/NyNxJLIbDWrO9DjGoVSW9+aB8H2yy1fy32jsvxijhmyJI9fDFgvz3YP4lvJaq9DzdR/M1bOgVc9g==}
@@ -1677,7 +1678,7 @@ packages:
       - supports-color
     dev: true
 
-  /drizzle-orm@0.37.0(@cloudflare/workers-types@4.20241205.0)(better-sqlite3@9.6.0):
+  /drizzle-orm@0.37.0(@cloudflare/workers-types@4.20241205.0)(@types/better-sqlite3@7.6.12)(better-sqlite3@9.6.0):
     resolution: {integrity: sha512-AsCNACQ/T2CyZUkrBRUqFT2ibHJ9ZHz3+lzYJFFn3hnj7ylIeItMz5kacRG89uSE74nXYShqehr6u+6ks4JR1A==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
@@ -1770,6 +1771,7 @@ packages:
         optional: true
     dependencies:
       '@cloudflare/workers-types': 4.20241205.0
+      '@types/better-sqlite3': 7.6.12
       better-sqlite3: 9.6.0
     dev: false
 
@@ -2754,7 +2756,6 @@ packages:
 
   /undici-types@6.20.0:
     resolution: {integrity: sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg==}
-    dev: true
 
   /undici@5.28.4:
     resolution: {integrity: sha512-72RFADWFqKmUb2hmmvNODKL3p9hcB6Gt2DOQMis1SEBaV6a4MH8soBvzg+95CYhCKPFedut2JY9bMfrDl9D23g==}

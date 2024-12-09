@@ -1,77 +1,58 @@
-import { NotificationLevel, UserPreferences } from '../types';
+import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
+import { DrizzleDatabaseWithSchema, preferences as preferencesTable } from '../schema'
+import { NotificationLevel, UserPreferences } from '../types'
+import migrations from '../../drizzle/migrations'
+import { eq } from 'drizzle-orm'
 
 export class PreferencesRepository {
-  constructor(private sql: SqlStorage) {}
+	constructor(private db: DrizzleDatabaseWithSchema) {}
 
-  async init() {
-    this.sql.exec(`
-      CREATE TABLE IF NOT EXISTS preferences (
-        user_id TEXT PRIMARY KEY,
-        default_level TEXT,
-        email_enabled INTEGER,
-        web_enabled INTEGER,
-        digest_frequency TEXT,
-        updated_at INTEGER
-      );
+	async init() {
+		await migrate(this.db, migrations)
+	}
 
-      CREATE TABLE IF NOT EXISTS subscriptions (
-        user_id TEXT,
-        creator_id TEXT,
-        level TEXT,
-        created_at INTEGER,
-        PRIMARY KEY (user_id, creator_id)
-      );
-    `);
-  }
+	async findByUserId(userId: string): Promise<UserPreferences | null> {
+		const result = await this.db.query.preferences.findFirst({
+			where: eq(preferencesTable.userId, userId),
+		})
+		return result ? this.mapToPreferences(result) : null
+	}
 
-  async findByUserId(userId: string): Promise<UserPreferences | null> {
-    const result = Array.from(this.sql.exec(`SELECT * FROM preferences WHERE user_id = ?`, userId));
-    return result.length ? this.mapToPreferences(result[0]) : null;
-  }
+	async upsertPreferences(userId: string, preferences: UserPreferences): Promise<void> {
+		const exists = await this.db.query.preferences.findFirst({
+			where: eq(preferencesTable.userId, userId),
+		})
 
-  async upsertPreferences(userId: string, preferences: UserPreferences): Promise<void> {
-    const params = [
-      preferences.defaultLevel,
-      Number(preferences.email),
-      Number(preferences.web),
-      preferences.digestFrequency || 'daily',
-      Date.now()
-    ];
+		if (exists) {
+			await this.db
+				.update(preferencesTable)
+				.set({
+					defaultLevel: preferences.defaultLevel,
+					emailEnabled: preferences.email,
+					webEnabled: preferences.web,
+					digestFrequency: preferences.digestFrequency,
+					updatedAt: new Date(),
+				})
+				.where(eq(preferencesTable.userId, userId))
+		} else {
+			await this.db.insert(preferencesTable).values({
+				userId,
+				defaultLevel: preferences.defaultLevel,
+				emailEnabled: preferences.email,
+				webEnabled: preferences.web,
+				digestFrequency: preferences.digestFrequency,
+				updatedAt: new Date(),
+			})
+		}
+	}
 
-    const exists = this.sql.exec(
-      "SELECT 1 FROM preferences WHERE user_id = ?", 
-      userId
-    ).toArray().length > 0;
-
-    this.sql.exec(
-      exists 
-        ? `UPDATE preferences 
-           SET default_level = ?,
-               email_enabled = ?,
-               web_enabled = ?,
-               digest_frequency = ?,
-               updated_at = ?
-           WHERE user_id = ?`
-        : `INSERT INTO preferences (
-             default_level,
-             email_enabled,
-             web_enabled,
-             digest_frequency,
-             updated_at,
-             user_id
-           ) VALUES (?, ?, ?, ?, ?, ?)`,
-      ...params,
-      userId
-    );
-  }
-
-  private mapToPreferences(row: any): UserPreferences {
-    return {
-      userId: row.user_id,
-      defaultLevel: row.default_level as NotificationLevel,
-      email: row.email_enabled === 1,
-      web: row.web_enabled === 1,
-      digestFrequency: row.digest_frequency as 'daily' | 'weekly',
-    };
-  }
-} 
+	private mapToPreferences(row: any): UserPreferences {
+		return {
+			userId: row.userId,
+			defaultLevel: row.defaultLevel as NotificationLevel,
+			email: Boolean(row.emailEnabled),
+			web: Boolean(row.webEnabled),
+			digestFrequency: row.digestFrequency as 'daily' | 'weekly',
+		}
+	}
+}

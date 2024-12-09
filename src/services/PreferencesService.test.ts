@@ -5,93 +5,87 @@ import { PreferenceError } from '../errors'
 import type { UserPreferences } from '../types'
 
 describe('PreferencesService', () => {
-  let service: PreferencesService
-  let mockRepository: PreferencesRepository
+	let service: PreferencesService
+	let mockRepository: PreferencesRepository
 
-  beforeEach(() => {
-    mockRepository = {
-      findByUserId: vi.fn(),
-      upsertPreferences: vi.fn(),
-    } as unknown as PreferencesRepository
+	beforeEach(() => {
+		mockRepository = {
+			findByUserId: vi.fn(),
+			upsertPreferences: vi.fn(),
+		} as unknown as PreferencesRepository
 
-    service = new PreferencesService(mockRepository)
-  })
+		service = new PreferencesService(mockRepository)
+	})
 
-  describe('getPreferences', () => {
-    it('returns existing preferences when found', async () => {
-      const mockPrefs: UserPreferences = {
-        userId: 'user1',
-        defaultLevel: 'everything',
-        email: false,
-        web: true,
-      }
-      
-      vi.mocked(mockRepository.findByUserId).mockResolvedValue(mockPrefs)
-      
-      const result = await service.getPreferences('user1')
-      expect(result).toEqual(mockPrefs)
-      expect(mockRepository.findByUserId).toHaveBeenCalledWith('user1')
-    })
+	describe('getPreferences', () => {
+		it('returns existing preferences when found', async () => {
+			const mockPrefs: UserPreferences = {
+				userId: 'user1',
+				defaultLevel: 'everything',
+				email: false,
+				web: true,
+			}
 
-    it('returns defaults when no preferences exist', async () => {
-      vi.mocked(mockRepository.findByUserId).mockResolvedValue(null)
-      
-      const result = await service.getPreferences('user1')
-      expect(result).toEqual({
-        userId: 'user1',
-        defaultLevel: 'everything',
-        email: true,
-        web: true,
-      })
-    })
-  })
+			vi.mocked(mockRepository.findByUserId).mockResolvedValue(mockPrefs)
 
-  describe('updatePreferences', () => {
-    it('updates existing preferences', async () => {
-      const existingPrefs: UserPreferences = {
-        userId: 'user1',
-        defaultLevel: 'everything',
-        email: true,
-        web: true,
-      }
+			const result = await service.getPreferences('user1')
+			expect(result).toEqual(mockPrefs)
+			expect(mockRepository.findByUserId).toHaveBeenCalledWith('user1')
+		})
 
-      const updates = {
-        email: false,
-      }
+		it('returns defaults when no preferences exist', async () => {
+			vi.mocked(mockRepository.findByUserId).mockResolvedValue(null)
 
-      vi.mocked(mockRepository.findByUserId).mockResolvedValue(existingPrefs)
-      
-      await service.updatePreferences('user1', updates)
-      
-      expect(mockRepository.upsertPreferences).toHaveBeenCalledWith('user1', {
-        ...existingPrefs,
-        email: false,
-      })
-    })
+			const result = await service.getPreferences('user1')
+			expect(result).toEqual({
+				userId: 'user1',
+				defaultLevel: 'everything',
+				email: true,
+				web: true,
+			})
+		})
+	})
 
-    it('throws on invalid userId', async () => {
-      await expect(
-        service.updatePreferences('', { email: false })
-      ).rejects.toThrow(PreferenceError)
-    })
+	describe('updatePreferences', () => {
+		it('updates existing preferences', async () => {
+			const existingPrefs: UserPreferences = {
+				userId: 'user1',
+				defaultLevel: 'everything',
+				email: true,
+				web: true,
+			}
 
-    it('throws on invalid preference format', async () => {
-      await expect(
-        service.updatePreferences('user1', { 
-          defaultLevel: 'invalid_level' as any 
-        })
-      ).rejects.toThrow(PreferenceError)
-    })
+			const updates = {
+				email: false,
+			}
 
-    it('propagates repository errors', async () => {
-      vi.mocked(mockRepository.findByUserId).mockResolvedValue(null)
-      vi.mocked(mockRepository.upsertPreferences).mockRejectedValue(
-        new Error('DB Error')
-      )
+			vi.mocked(mockRepository.findByUserId).mockResolvedValue(existingPrefs)
 
-      await expect(
-        service.updatePreferences('user1', { email: false })
-      ).rejects.toThrow('Failed to update preferences: DB Error')
-    })
-  })
-}) 
+			await service.updatePreferences('user1', updates)
+
+			expect(mockRepository.upsertPreferences).toHaveBeenCalledWith('user1', {
+				...existingPrefs,
+				email: false,
+			})
+		})
+
+		it('throws on invalid userId', async () => {
+			await expect(service.updatePreferences('', { email: false })).rejects.toThrow(PreferenceError)
+		})
+
+		it('throws on invalid preference format', async () => {
+			await expect(
+				service.updatePreferences('user1', {
+					defaultLevel: 'invalid_level' as any,
+				}),
+			).rejects.toThrow(PreferenceError)
+		})
+
+		it('propagates repository errors', async () => {
+			vi.mocked(mockRepository.findByUserId).mockResolvedValue(null)
+			vi.mocked(mockRepository.upsertPreferences).mockRejectedValue(new Error('DB Error'))
+
+			await expect(service.updatePreferences('user1', { email: false })).rejects.toThrow('Failed to update preferences: DB Error')
+		})
+	})
+})
