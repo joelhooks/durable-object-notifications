@@ -1,9 +1,16 @@
+/// <reference types="@cloudflare/workers-types" />
+import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { DurableObject } from "cloudflare:workers";
 import { PreferencesRepository } from './db/PreferencesRepository';
 import { PreferencesService } from './services/PreferencesService';
 import { UserPreferencesSchema } from './types';
 
+import migrations from '../drizzle/migrations';
+import { migrate } from 'drizzle-orm/durable-sqlite/migrator';
+import { DrizzleDatabaseWithSchema, schema } from './schema'
+
 export class PreferenceManager extends DurableObject {
+	db: DrizzleDatabaseWithSchema;
   private repository: PreferencesRepository;
   private service: PreferencesService;
 
@@ -12,6 +19,11 @@ export class PreferenceManager extends DurableObject {
     this.repository = new PreferencesRepository(ctx.storage.sql);
     this.service = new PreferencesService(this.repository);
     this.init();
+		this.db = drizzle(ctx.storage, { schema });
+  }
+
+	async migrate() {
+    migrate(this.db, migrations);
   }
 
   private async init() {
@@ -38,6 +50,8 @@ export default {
 
     const id = env.PREFERENCES.idFromName(userId);
     const manager = env.PREFERENCES.get(id);
+
+		await manager.migrate()
 
     if (request.method === 'GET') {
       return new Response(

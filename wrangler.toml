@@ -1,30 +1,22 @@
 #:schema node_modules/wrangler/config-schema.json
 name = "durable-object-starter"
 main = "src/index.ts"
-compatibility_date = "2023-12-18"
+compatibility_date = "2024-11-12"
+compatibility_flags = [ "nodejs_compat" ]
 
-# Workers Logs
-# Docs: https://developers.cloudflare.com/workers/observability/logs/workers-logs/
-# Configuration: https://developers.cloudflare.com/workers/observability/logs/workers-logs/#enable-workers-logs
 [observability]
 enabled = true
 
-# Bind a Durable Object. Durable objects are a scale-to-zero compute primitive based on the actor model.
-# Durable Objects can live for as long as needed. Use these when you need a long-running "server", such as in realtime apps.
-# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#durable-objects
 [durable_objects]
 bindings = [
   { name = "PREFERENCES", class_name = "PreferenceManager" }
 ]
 
-# Durable Object migrations.
-# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#migrations
 [[migrations]]
 tag = "v1"
-new_classes = ["PreferenceManager"]
+new_sqlite_classes = ["PreferenceManager"]
 
-[build]
-command = "npm run build"
-
-[miniflare]
-durable_objects_persist = false
+[[rules]] 
+type = "Text"
+globs = ["**/*.sql"]
+fallthrough = true
