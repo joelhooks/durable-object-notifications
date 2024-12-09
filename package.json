@@ -1,5 +1,5 @@
 {
-  "name": "durable-notifications",
+  "name": "durable-object-notifications",
   "version": "0.0.1",
   "private": true,
   "scripts": {
