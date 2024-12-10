@@ -21,7 +21,9 @@ export class PreferenceManager extends DurableObject {
 	}
 
 	private async init() {
-		await this.repository.init()
+		this.ctx.blockConcurrencyWhile(async () => {
+			await this.repository.init()
+		});
 	}
 
 	async getPreferences(userId: string) {
